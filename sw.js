@@ -1,5 +1,5 @@
 // みまもりペット Service Worker
-const CACHE = 'mimamori-pet-v2';
+const CACHE = 'mimamori-pet-v3';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -17,6 +17,8 @@ self.addEventListener('activate', (e) => {
 // ネット優先・失敗したらキャッシュ
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  // 自分のファイルだけ扱う（通知サービスなど外部への通信には関わらない）
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {

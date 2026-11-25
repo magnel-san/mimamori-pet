@@ -244,32 +244,68 @@
   <!-- 5. スマホ通知 -->
   <section class="card">
     <h2><span class="num">5</span>スマホにも通知する</h2>
-    <label class="c"><input type="checkbox" id="phoneOn">スマホに通知を送る（ntfy を使います）</label>
+    <label class="c"><input type="checkbox" id="phoneOn">スマホに通知を送る</label>
     <div class="grid2" style="margin-top:10px">
-      <label class="f">トピック名（合言葉のようなもの）
-        <input type="text" id="ntfyTopic" autocomplete="off" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
-      </label>
-      <label class="f">サーバー
-        <input type="url" id="ntfyServer" value="https://ntfy.sh" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
-      </label>
-    </div>
-    <div style="display:grid;gap:8px;margin-top:10px">
-      <label class="c"><input type="checkbox" id="phoneImg">異常を見つけた範囲の画像も送る</label>
-      <label class="f" style="max-width:320px">定期報告（届かなくなったらPCが止まった合図）
-        <select id="heartbeat"><option value="0" selected>しない</option><option value="1800">30分ごと</option><option value="3600">1時間ごと</option><option value="10800">3時間ごと</option></select>
+      <label class="f">通知アプリ
+        <select id="phoneSvc">
+          <option value="bark" selected>Bark（iPhone・おすすめ）</option>
+          <option value="ntfy">ntfy（Android向け）</option>
+        </select>
       </label>
     </div>
+
+    <!-- Bark -->
+    <div id="barkBox" style="margin-top:10px">
+      <label class="f">BarkのURLかキー（Barkアプリに出るURLをそのまま貼ってOK）
+        <input type="text" id="barkKey" autocomplete="off" spellcheck="false" placeholder="https://api.day.app/xxxxxxxx/..." style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+      </label>
+      <div class="grid2" style="margin-top:10px">
+        <label class="f">異常を見つけたときの鳴らし方
+          <select id="barkAlertLevel">
+            <option value="active">ふつうに鳴らす</option>
+            <option value="timeSensitive" selected>集中モード中でも鳴らす</option>
+            <option value="critical">消音モードでも必ず鳴らす（重大な通知）</option>
+          </select>
+        </label>
+        <label class="f">見張りが止まったときの鳴らし方
+          <select id="barkStopLevel">
+            <option value="active">ふつうに鳴らす</option>
+            <option value="timeSensitive">集中モード中でも鳴らす</option>
+            <option value="critical" selected>消音モードでも必ず鳴らす（重大な通知）</option>
+          </select>
+        </label>
+      </div>
+      <label class="c" style="margin-top:10px"><input type="checkbox" id="barkCall">異常のときは30秒間鳴らし続ける</label>
+      <p class="hint">
+        ① iPhoneに「<b>Bark</b>」アプリ（App Storeで無料）を入れて開き、通知を許可する。「重大な通知」の許可を求められたら許可する<br>
+        ② Barkの画面に出ている <code>https://api.day.app/〜</code> のURLをコピーして、上の欄に貼る<br>
+        ③ 「スマホにテスト送信」を押して、音が鳴れば準備OK<br>
+        このURL（キー）を知っている人は誰でもあなたのiPhoneに通知を送れるので、人に見せないでください。
+      </p>
+    </div>
+
+    <!-- ntfy -->
+    <div id="ntfyBox" style="margin-top:10px" hidden>
+      <div class="grid2">
+        <label class="f">トピック名（合言葉のようなもの）
+          <input type="text" id="ntfyTopic" autocomplete="off" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+        </label>
+        <label class="f">サーバー
+          <input type="url" id="ntfyServer" value="https://ntfy.sh" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+        </label>
+      </div>
+      <label class="c" style="margin-top:10px"><input type="checkbox" id="phoneImg">異常を見つけた範囲の画像も送る</label>
+      <div class="row" style="margin-top:10px"><button id="btnTopic">トピック名を作り直す</button></div>
+      <p class="hint">スマホに「ntfy」アプリを入れて、上のトピック名を購読してください。※iPhone（iOS 26.2以降）のntfyアプリは通知音が鳴らない不具合が報告されているので、iPhoneならBarkを使ってください。</p>
+    </div>
+
+    <label class="f" style="max-width:320px;margin-top:10px">定期報告（届かなくなったらPCが止まった合図・音なし）
+      <select id="heartbeat"><option value="0" selected>しない</option><option value="1800">30分ごと</option><option value="3600">1時間ごと</option><option value="10800">3時間ごと</option></select>
+    </label>
     <div class="row" style="margin-top:10px">
-      <button id="btnTopic">トピック名を作り直す</button>
-      <button id="btnPhoneTest">スマホにテスト送信</button>
+      <button class="primary" id="btnPhoneTest">スマホにテスト送信</button>
     </div>
     <p class="status" style="margin-top:8px">スマホ通知：<b id="phoneState">オフ</b></p>
-    <p class="hint">
-      ① スマホに「ntfy」アプリを入れる（iPhone / Android とも無料）<br>
-      ② アプリの「＋」で上のトピック名を購読する（サーバーは ntfy.sh のまま）<br>
-      ③ ここで「スマホにテスト送信」を押して、届けば準備OK<br>
-      トピック名を知っている人は誰でも通知を読めるので、推測されにくい名前のままにしてください。
-    </p>
   </section>
 
   <!-- ログ -->
@@ -278,7 +314,7 @@
     <ul id="log"></ul>
   </section>
 
-  <p class="hint" style="text-align:center">画像の解析はこの端末の中だけで行います。スマホ通知をオンにしたときだけ、通知の文章（と、選んだ場合は範囲の画像）が ntfy のサーバー経由でスマホに送られます。</p>
+  <p class="hint" style="text-align:center">画像の解析はこの端末の中だけで行います。スマホ通知をオンにしたときだけ、通知の文章（と、選んだ場合は範囲の画像）が Bark（または ntfy）のサーバー経由でスマホに送られます。</p>
 </main>
 
 <video id="video" playsinline muted autoplay></video>
@@ -413,40 +449,80 @@ async function notify(title, body, opts = {}) {
   try { new Notification(title, opt); } catch {}
 }
 
-/* ---------- スマホ通知（ntfy） ---------- */
+/* ---------- スマホ通知（Bark / ntfy） ---------- */
 function randomTopic() {
   const a = new Uint8Array(9); crypto.getRandomValues(a);
   return 'mimamori-' + Array.from(a, (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 }
 function ntfyBase() { return ($('ntfyServer').value.trim() || 'https://ntfy.sh').replace(/\/+$/, ''); }
 function phoneState(t, ok) { $('phoneState').textContent = t; $('phoneState').style.color = ok === false ? 'var(--warn)' : ''; }
-async function sendPhone(title, body, opts = {}, force) {
-  if (!force && !$('phoneOn').checked) return;
+// 「https://api.day.app/KEY/...」でも「KEY」だけでも受け付ける
+function parseBark(v) {
+  v = (v || '').trim();
+  let server = 'https://api.day.app', key = v;
+  const m = v.match(/^(https?:\/\/[^\/\s]+)\/([A-Za-z0-9]+)/);
+  if (m) { server = m[1]; key = m[2]; }
+  return /^[A-Za-z0-9]{8,64}$/.test(key) ? { server, key } : null;
+}
+function phoneOk() { phoneState('送信しました（' + new Date().toLocaleTimeString('ja-JP') + '）', true); }
+function phoneFail(e) {
+  phoneState('送信できませんでした：' + (e.message || e), false);
+  log('スマホへの通知に失敗：' + (e.message || e), 'alert');
+}
+// opts.kind: 'alert'（異常）/ 'stop'（止まった）/ 'test' / 'info'（開始・定期報告）
+async function sendBark(title, body, opts) {
+  const b = parseBark($('barkKey').value);
+  if (!b) { phoneState('BarkのURLかキーを貼ってください', false); return; }
+  const kind = opts.kind || 'alert';
+  const level = kind === 'alert' ? $('barkAlertLevel').value
+              : kind === 'stop' ? $('barkStopLevel').value
+              : kind === 'test' ? 'active' : 'passive';
+  const q = new URLSearchParams({ group: 'みまもりペット', level });
+  try { q.set('icon', new URL('icons/icon-192.png', location.href).href); } catch {}
+  if (kind === 'alert' && $('barkCall').checked) q.set('call', '1');
+  if (level === 'critical') q.set('volume', '8');
+  const url = `${b.server}/${b.key}/${encodeURIComponent(title)}/${encodeURIComponent(body)}?${q}`;
+  try {
+    const res = await fetch(url);
+    let j = null; try { j = await res.json(); } catch {}
+    if (!res.ok || (j && j.code && j.code !== 200)) throw new Error((j && j.message) || ('HTTP ' + res.status));
+    phoneOk();
+  } catch (e) {
+    // GETはブラウザに中身を読ませてもらえなくてもサーバーには届いていることがある
+    if (e instanceof TypeError) phoneState('送信しました（届いたかはiPhoneで確認してね・キーの打ち間違いにも注意）', true);
+    else phoneFail(e);
+  }
+}
+async function sendNtfy(title, body, opts) {
   const topic = $('ntfyTopic').value.trim();
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(topic)) { phoneState('トピック名は英数字と - _ だけにしてください', false); return; }
-  const priority = opts.priority || 4, tags = opts.tags || 'warning';
+  const kind = opts.kind || 'alert';
+  const priority = { alert: 4, stop: 5, test: 3, info: 2 }[kind] || 3;
+  const tags = { alert: 'warning', stop: 'stop_sign', test: 'dog', info: 'eyes' }[kind] || 'warning';
   try {
     let res;
     if (opts.canvas && $('phoneImg').checked) {
-      // 画像つき：本体に画像、文章はクエリで渡す
       const blob = await new Promise((r) => opts.canvas.toBlob(r, 'image/png'));
       const q = new URLSearchParams({ title, message: body, priority: String(priority), tags, filename: 'mimamori.png' });
       res = await fetch(`${ntfyBase()}/${encodeURIComponent(topic)}?${q}`, { method: 'PUT', body: blob });
     } else {
       res = await fetch(ntfyBase() + '/', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, title, message: body, priority, tags: tags.split(',') })
+        body: JSON.stringify({ topic, title, message: body, priority, tags: [tags] })
       });
     }
     if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 429 ? '（送りすぎ。少し待ってね）' : ''));
-    phoneState('送信OK（' + new Date().toLocaleTimeString('ja-JP') + '）', true);
-  } catch (e) {
-    phoneState('送信できませんでした：' + (e.message || e), false);
-    log('スマホへの通知に失敗：' + (e.message || e), 'alert');
-  }
+    phoneOk();
+  } catch (e) { phoneFail(e); }
 }
+async function sendPhone(title, body, opts = {}, force) {
+  if (!force && !$('phoneOn').checked) return;
+  return $('phoneSvc').value === 'ntfy' ? sendNtfy(title, body, opts) : sendBark(title, body, opts);
+}
+function showSvc() { const n = $('phoneSvc').value === 'ntfy'; $('ntfyBox').hidden = !n; $('barkBox').hidden = n; }
+$('phoneSvc').addEventListener('change', showSvc);
 $('btnTopic').onclick = () => { $('ntfyTopic').value = randomTopic(); store.set('opt:ntfyTopic', $('ntfyTopic').value); };
-$('btnPhoneTest').onclick = () => sendPhone(`${pet.name}からのお知らせ`, 'スマホ通知のテストです。届いたら準備OK！', { tags: 'dog', priority: 3 }, true);
+$('btnPhoneTest').onclick = () => sendPhone(`${pet.name}からのお知らせ`, 'スマホ通知のテストです。音が鳴ったら準備OK！', { kind: 'test' }, true);
 $('phoneOn').addEventListener('change', () => phoneState($('phoneOn').checked ? 'オン' : 'オフ'));
 
 $('btnTest').onclick = () => notify(`${pet.name}からのお知らせ`, 'テスト通知です。ちゃんと届いたかな？');
@@ -467,13 +543,13 @@ async function startStream(getter) {
     muteTimer = setTimeout(() => {
       if (!running || !vt.muted) return;
       log('画面の取り込みが止まっています（最小化・画面ロックなど）', 'alert');
-      notify('見張りが止まっているかも', '画面の取り込みが止まっています。見張りたい窓が最小化されたり、画面がロックされていないか確認してね。', { priority: 4, tags: 'warning' });
+      notify('見張りが止まっているかも', '画面の取り込みが止まっています。見張りたい窓が最小化されたり、画面がロックされていないか確認してね。', { kind: 'stop' });
     }, 20000);
   });
   vt.addEventListener('unmute', () => { if (muteTimer) { clearTimeout(muteTimer); muteTimer = null; } if (running) log('画面の取り込みが再開しました'); });
   vt.addEventListener('ended', () => {
     log('画面共有が終了しました', 'alert');
-    if (running) { notify('見張りが止まりました', '画面共有が終わったので見張りを続けられません。', { priority: 5, tags: 'stop_sign' }); stopMonitor(); }
+    if (running) { notify('見張りが止まりました', '画面共有が終わったので見張りを続けられません。', { kind: 'stop' }); stopMonitor(); }
     stopStream(true);
   });
   $('btnStopShare').disabled = false; $('btnRetake').disabled = false;
@@ -658,14 +734,14 @@ async function check() {
       const min = Math.round((now - lastTick) / 60000);
       const msg = `約${min < 1 ? '1分未満' : min + '分'}のあいだ見張れていませんでした（PCのスリープや画面ロックかも）`;
       log(msg, 'alert'); say('あれ？ ちょっと寝ちゃってたかも…ごめんね。');
-      notify('見張りに空白がありました', msg, { priority: 4, tags: 'zzz' });
+      notify('見張りに空白がありました', msg, { kind: 'stop' });
       regions.forEach((r) => { r.prev = r.base; });
     }
     lastTick = now;
     const hb = +$('heartbeat').value * 1000;
     if (hb && $('phoneOn').checked && now - lastBeat >= hb) {
       lastBeat = now;
-      sendPhone(`${pet.name}は見張り中`, `${regions.length}か所を見張っています。これまでに見つけた異常：${pet.hits}件`, { priority: 2, tags: 'eyes' });
+      sendPhone(`${pet.name}は見張り中`, `${regions.length}か所を見張っています。これまでに見つけた異常：${pet.hits}件`, { kind: 'info' });
     }
     if (!(await grabFrame())) return;
     pet.checks++;
@@ -696,7 +772,7 @@ async function check() {
       say(`たいへん！ ${names}が変わったよ！`);
       log(`異常を検知：${names}（${hits.map((r) => r.score.toFixed(1) + '%').join(', ')}）`, 'alert');
       let img; try { drawThumb(hits[0]); img = hits[0].thumb.toDataURL('image/png'); } catch {}
-      notify(`${pet.name}が異常を見つけたよ`, `${names} に変化がありました`, { image: img, canvas: hits[0].thumb, priority: 4, tags: 'warning' });
+      notify(`${pet.name}が異常を見つけたよ`, `${names} に変化がありました`, { image: img, canvas: hits[0].thumb, kind: 'alert' });
       gainXp(1 + 10 * hits.length);
     } else {
       gainXp(1);
@@ -789,7 +865,7 @@ async function startMonitor() {
   say('見張り開始！ 何かあったらすぐ知らせるね。');
   status(`見張り中 <b>${regions.length}か所</b>`, true);
   updateButtons(); await acquireWake(); check();
-  if ($('phoneOn').checked) sendPhone(`${pet.name}が見張りをはじめたよ`, `${regions.length}か所を${$('interval').selectedOptions[0].text}ごとにチェックします`, { priority: 2, tags: 'eyes' });
+  if ($('phoneOn').checked) sendPhone(`${pet.name}が見張りをはじめたよ`, `${regions.length}か所を${$('interval').selectedOptions[0].text}ごとにチェックします`, { kind: 'info' });
 }
 function stopMonitor() {
   running = false; ticker?.stop(); ticker = null; lastTick = 0;
@@ -814,7 +890,7 @@ function updateButtons() {
 }
 
 // 設定の保存
-['interval', 'mode', 'sens', 'cooldown', 'learn', 'rebase', 'sound', 'optWake', 'optGap', 'phoneOn', 'phoneImg', 'heartbeat', 'ntfyTopic', 'ntfyServer'].forEach((id) => {
+['interval', 'mode', 'sens', 'cooldown', 'learn', 'rebase', 'sound', 'optWake', 'optGap', 'phoneOn', 'phoneImg', 'heartbeat', 'ntfyTopic', 'ntfyServer', 'phoneSvc', 'barkKey', 'barkAlertLevel', 'barkStopLevel', 'barkCall'].forEach((id) => {
   const el = $(id), v = store.get('opt:' + id, null);
   if (v != null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
   el.addEventListener('change', () => store.set('opt:' + id, el.type === 'checkbox' ? el.checked : el.value));
@@ -822,6 +898,7 @@ function updateButtons() {
 $('sensVal').textContent = $('sens').value;
 if (!$('ntfyTopic').value) { $('ntfyTopic').value = randomTopic(); store.set('opt:ntfyTopic', $('ntfyTopic').value); }
 phoneState($('phoneOn').checked ? 'オン' : 'オフ');
+showSvc();
 
 window.addEventListener('beforeunload', (e) => { if (running) { e.preventDefault(); e.returnValue = ''; } });
 renderPet();

@@ -476,10 +476,10 @@ async function sendBark(title, body, opts) {
   const kind = opts.kind || 'alert';
   const level = kind === 'alert' ? $('barkAlertLevel').value
               : kind === 'stop' ? $('barkStopLevel').value
-              : kind === 'test' ? 'active' : 'passive';
+              : kind === 'test' ? $('barkAlertLevel').value : 'passive';
   const q = new URLSearchParams({ group: 'みまもりペット', level });
   try { q.set('icon', new URL('icons/icon-192.png', location.href).href); } catch {}
-  if (kind === 'alert' && $('barkCall').checked) q.set('call', '1');
+  if ((kind === 'alert' || kind === 'test') && $('barkCall').checked) q.set('call', '1');
   if (level === 'critical') q.set('volume', '8');
   const url = `${b.server}/${b.key}/${encodeURIComponent(title)}/${encodeURIComponent(body)}?${q}`;
   try {
@@ -522,7 +522,7 @@ async function sendPhone(title, body, opts = {}, force) {
 function showSvc() { const n = $('phoneSvc').value === 'ntfy'; $('ntfyBox').hidden = !n; $('barkBox').hidden = n; }
 $('phoneSvc').addEventListener('change', showSvc);
 $('btnTopic').onclick = () => { $('ntfyTopic').value = randomTopic(); store.set('opt:ntfyTopic', $('ntfyTopic').value); };
-$('btnPhoneTest').onclick = () => sendPhone(`${pet.name}からのお知らせ`, 'スマホ通知のテストです。音が鳴ったら準備OK！', { kind: 'test' }, true);
+$('btnPhoneTest').onclick = () => sendPhone(`${pet.name}からのお知らせ`, 'スマホ通知のテストです（異常のときと同じ鳴らし方で送っています）。音が鳴ったら準備OK！', { kind: 'test' }, true);
 $('phoneOn').addEventListener('change', () => phoneState($('phoneOn').checked ? 'オン' : 'オフ'));
 
 $('btnTest').onclick = () => notify(`${pet.name}からのお知らせ`, 'テスト通知です。ちゃんと届いたかな？');

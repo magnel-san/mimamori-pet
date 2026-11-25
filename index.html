@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>みまもりペット</title>
+<meta name="theme-color" content="#ff9f6b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+  :root{
+    --bg:#fff7ee; --card:#ffffff; --ink:#3a2e2a; --sub:#8a766c; --line:#f0e0d2;
+    --accent:#ff8a50; --accent2:#ffb38a; --ok:#3fae7a; --warn:#e5484d; --sel:#2f80ed;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;}
+  body{padding:max(12px,env(safe-area-inset-top)) 12px 40px}
+  main{max-width:860px;margin:0 auto;display:grid;gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 2px 0 #f3e3d4}
+  h2{font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  h2 .num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px}
+  p.hint{margin:6px 0 0;color:var(--sub);font-size:13px;line-height:1.6}
+  button{font:inherit;border:0;border-radius:12px;padding:10px 14px;cursor:pointer;background:#f4e7dc;color:var(--ink)}
+  button.primary{background:var(--accent);color:#fff;font-weight:700}
+  button.danger{background:var(--warn);color:#fff;font-weight:700}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+  /* ペット */
+  .pet-wrap{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center}
+  #pet{width:150px;height:150px;cursor:pointer;user-select:none;-webkit-user-select:none}
+  #pet .body{transform-origin:100px 150px}
+  .mood-idle #pet .body{animation:breathe 3s ease-in-out infinite}
+  .mood-watch #pet .body{animation:bob 1.6s ease-in-out infinite}
+  .mood-watch #pet .pupils{animation:look 4s ease-in-out infinite}
+  .mood-alert #pet .body{animation:shake .25s linear infinite}
+  .mood-sleep #pet .eyes-open{display:none}
+  .mood-sleep #pet .eyes-closed{display:inline}
+  #pet .eyes-closed,#pet .zzz,#pet .bang,#pet .ears,#pet .cape,#pet .egg,#pet .crack{display:none}
+  .mood-sleep #pet .zzz{display:inline}
+  .mood-alert #pet .bang{display:inline}
+  .stage-0 #pet .egg{display:inline} .stage-0 #pet .creature{display:none}
+  .stage-0 #pet .crack{display:none}
+  .stage-0.lv2 #pet .crack{display:inline}
+  .stage-2 #pet .ears,.stage-3 #pet .ears{display:inline}
+  .stage-3 #pet .cape{display:inline}
+  @keyframes breathe{50%{transform:scale(1.03,.97)}}
+  @keyframes bob{50%{transform:translateY(-5px)}}
+  @keyframes shake{25%{transform:rotate(-4deg)}75%{transform:rotate(4deg)}}
+  @keyframes look{0%,100%{transform:translateX(0)}30%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+  .heart{position:absolute;pointer-events:none;font-size:20px;animation:float 1s ease-out forwards}
+  @keyframes float{to{transform:translateY(-50px);opacity:0}}
+  .pet-name{font-size:20px;font-weight:800;border:0;background:transparent;color:var(--ink);width:100%;padding:0;font-family:inherit}
+  .pet-meta{color:var(--sub);font-size:13px;margin:4px 0 8px}
+  .bar{height:10px;border-radius:6px;background:#f4e7dc;overflow:hidden}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));width:0;transition:width .4s}
+  .bubble{margin-top:10px;background:#fff3ea;border-radius:12px;padding:8px 12px;font-size:14px;line-height:1.5;position:relative}
+  .stats{display:flex;gap:12px;margin-top:8px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+
+  /* キャンバス */
+  .stage-box{position:relative;border-radius:12px;overflow:hidden;background:#2b2320;min-height:120px}
+  #shot{display:block;width:100%;height:auto;touch-action:pan-y;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+  .stage-box.selecting #shot{touch-action:none}
+  .press-ring{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
+    border:3px solid #fff;pointer-events:none;opacity:0;transform:scale(.4)}
+  .press-ring.on{animation:ring .4s linear forwards}
+  @keyframes ring{to{opacity:.9;transform:scale(1)}}
+  .empty{color:#d8c6ba;text-align:center;padding:40px 10px;font-size:14px}
+
+  .regions{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}
+  .regions li{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:6px}
+  .regions canvas{width:64px;height:40px;border-radius:6px;background:#eee;object-fit:contain}
+  .regions .name{font-weight:700;font-size:14px}
+  .regions .score{font-size:12px;color:var(--sub)}
+  .regions li.hit{border-color:var(--warn);background:#fff0f0}
+  .meter{height:6px;border-radius:4px;background:#f4e7dc;overflow:hidden;margin-top:4px;position:relative}
+  .meter>i{display:block;height:100%;background:var(--ok);width:0}
+  .meter>b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--warn)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  label.f{display:grid;gap:4px;font-size:13px;color:var(--sub)}
+  label.f select,label.f input[type=number]{font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+  label.c{display:flex;gap:8px;align-items:center;font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .status{font-size:13px;color:var(--sub)}
+  .status b{color:var(--ink)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#bbb;margin-right:6px}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 4px #3fae7a33}
+  #log{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto;font-size:13px}
+  #log li{padding:6px 2px;border-bottom:1px dashed var(--line);display:flex;gap:8px}
+  #log time{color:var(--sub);font-variant-numeric:tabular-nums}
+  #log li.alert{color:var(--warn);font-weight:700}
+  .warnbox{background:#fff0f0;border:1px solid #ffd0d0;color:#a33;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.6}
+  video{position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0}
+  @media (max-width:560px){.pet-wrap{grid-template-columns:110px 1fr}#pet{width:110px;height:110px}.grid2{grid-template-columns:1fr}}
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#1f1a18;--card:#2a2321;--ink:#f6ece6;--sub:#b5a398;--line:#3d3330}
+    .card{box-shadow:none} button{background:#3a302c;color:var(--ink)} .bubble{background:#3a2c25}
+    .bar,.meter{background:#3a302c} label.f select,label.f input[type=number]{background:#1f1a18}
+    .regions li.hit{background:#3a2224}
+  }
+</style>
+</head>
+<body class="mood-sleep stage-0">
+<main>
+
+  <!-- ペット -->
+  <section class="card pet-wrap" id="petCard">
+    <div style="position:relative" id="petBox">
+      <svg id="pet" viewBox="0 0 200 200" aria-label="ペット">
+        <g class="body">
+          <!-- たまご -->
+          <g class="egg">
+            <ellipse cx="100" cy="115" rx="58" ry="72" fill="#fff6e0" stroke="#e8cfa8" stroke-width="4"/>
+            <circle cx="80" cy="95" r="8" fill="#ffc9a3"/><circle cx="122" cy="130" r="11" fill="#ffc9a3"/><circle cx="110" cy="80" r="6" fill="#ffc9a3"/>
+            <path class="crack" d="M58 110 l15 -8 l10 12 l14 -10 l12 9 l15 -8 l18 6" fill="none" stroke="#8a6a4a" stroke-width="3"/>
+          </g>
+          <!-- いきもの -->
+          <g class="creature">
+            <g class="cape"><path d="M45 120 Q100 210 155 120 L150 185 Q100 200 50 185Z" fill="#5b7fd6"/></g>
+            <g class="ears">
+              <path d="M52 78 L60 20 L95 60Z" fill="#ffa877"/><path d="M148 78 L140 20 L105 60Z" fill="#ffa877"/>
+              <path d="M62 62 L65 36 L82 56Z" fill="#ffd2b8"/><path d="M138 62 L135 36 L118 56Z" fill="#ffd2b8"/>
+            </g>
+            <ellipse cx="100" cy="115" rx="66" ry="60" fill="#ffa877"/>
+            <ellipse cx="100" cy="135" rx="38" ry="28" fill="#ffd2b8"/>
+            <g class="eyes-open">
+              <ellipse cx="76" cy="105" rx="13" ry="15" fill="#fff"/><ellipse cx="124" cy="105" rx="13" ry="15" fill="#fff"/>
+              <g class="pupils"><circle cx="77" cy="107" r="8" fill="#3a2e2a"/><circle cx="125" cy="107" r="8" fill="#3a2e2a"/>
+                <circle cx="80" cy="103" r="3" fill="#fff"/><circle cx="128" cy="103" r="3" fill="#fff"/></g>
+            </g>
+            <g class="eyes-closed"><path d="M64 106 q12 8 24 0 M112 106 q12 8 24 0" stroke="#3a2e2a" stroke-width="4" fill="none" stroke-linecap="round"/></g>
+            <path d="M92 128 q8 7 16 0" stroke="#3a2e2a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+            <circle cx="58" cy="125" r="8" fill="#ff8a8a" opacity=".5"/><circle cx="142" cy="125" r="8" fill="#ff8a8a" opacity=".5"/>
+            <g class="cape"><circle cx="100" cy="160" r="9" fill="#ffd34d" stroke="#d9a400" stroke-width="2"/></g>
+          </g>
+        </g>
+        <text class="zzz" x="150" y="50" font-size="22" fill="#8a766c">z<tspan dy="-10" font-size="16">z</tspan></text>
+        <text class="bang" x="155" y="55" font-size="44" font-weight="900" fill="#e5484d">!</text>
+      </svg>
+    </div>
+    <div>
+      <input class="pet-name" id="petName" value="ミマモ" maxlength="12" aria-label="ペットの名前">
+      <div class="pet-meta"><span id="petStage">たまご</span> ・ Lv.<span id="petLv">1</span></div>
+      <div class="bar"><i id="xpBar"></i></div>
+      <div class="bubble" id="bubble">見張りをはじめると、ぼくが育つよ。</div>
+      <div class="stats"><span>見張った回数 <b id="stChecks">0</b></span><span>見つけた異常 <b id="stHits">0</b></span><span>なかよし度 <b id="stLove">0</b></span></div>
+    </div>
+  </section>
+
+  <div class="warnbox" id="supportWarn" hidden></div>
+
+  <!-- 1. アプリ選択 -->
+  <section class="card">
+    <h2><span class="num">1</span>見張るアプリを選ぶ</h2>
+    <div class="row">
+      <button class="primary" id="btnPick">アプリ／ウィンドウを選ぶ</button>
+      <button id="btnCam">カメラを使う</button>
+      <button id="btnStopShare" disabled>共有をやめる</button>
+    </div>
+    <p class="hint">「アプリ／ウィンドウを選ぶ」を押すと、ブラウザの共有画面が出ます。見張りたいアプリのウィンドウを選んでください。選ぶとスクショが下に出ます。</p>
+  </section>
+
+  <!-- 2. 範囲選択 -->
+  <section class="card">
+    <h2><span class="num">2</span>見張る範囲を選ぶ</h2>
+    <div class="stage-box" id="stageBox">
+      <canvas id="shot" width="0" height="0"></canvas>
+      <div class="press-ring" id="ring"></div>
+      <div class="empty" id="emptyMsg">まだスクショがありません</div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnRetake" disabled>スクショを撮り直す</button>
+      <button id="btnClear" disabled>範囲をぜんぶ消す</button>
+    </div>
+    <p class="hint">スクショを<b>長押し</b>して、そのまま指（マウス）を動かすと四角で範囲を選べます。いくつでも追加できます。</p>
+    <ul class="regions" id="regionList"></ul>
+  </section>
+
+  <!-- 3. 設定と開始 -->
+  <section class="card">
+    <h2><span class="num">3</span>見張りの設定</h2>
+    <div class="grid2">
+      <label class="f">チェック間隔
+        <select id="interval">
+          <option value="2">2秒</option><option value="5" selected>5秒</option><option value="10">10秒</option>
+          <option value="30">30秒</option><option value="60">1分</option><option value="300">5分</option>
+        </select>
+      </label>
+      <label class="f">何と比べる？
+        <select id="mode">
+          <option value="baseline" selected>選んだときの画面と比べる</option>
+          <option value="previous">ひとつ前のチェックと比べる</option>
+        </select>
+      </label>
+      <label class="f"><span>感度（変化が <b id="sensVal">5</b>% 以上で異常）</span>
+        <input type="range" id="sens" min="1" max="50" value="5">
+      </label>
+      <label class="f">同じ範囲の通知の間隔
+        <select id="cooldown">
+          <option value="0">毎回知らせる</option><option value="30">30秒あける</option>
+          <option value="60" selected>1分あける</option><option value="300">5分あける</option>
+        </select>
+      </label>
+    </div>
+    <div style="display:grid;gap:8px;margin-top:12px">
+      <label class="c"><input type="checkbox" id="learn" checked>いつもの揺らぎを学習する（時計やアニメで誤報が出にくくなる）</label>
+      <label class="c"><input type="checkbox" id="rebase" checked>通知したら、その画面を新しい基準にする</label>
+      <label class="c"><input type="checkbox" id="sound" checked>音とバイブでも知らせる</label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="btnStart" disabled>見張りスタート</button>
+      <button class="danger" id="btnStop" disabled>見張りストップ</button>
+      <button id="btnNotif">通知を許可する</button>
+      <button id="btnTest">テスト通知</button>
+    </div>
+    <p class="status" style="margin-top:10px"><span class="dot" id="dot"></span><span id="statusText">待機中</span></p>
+  </section>
+
+  <!-- 4. スリープ対策 -->
+  <section class="card">
+    <h2><span class="num">4</span>スリープ対策（パソコン）</h2>
+    <div style="display:grid;gap:8px">
+      <label class="c"><input type="checkbox" id="optWake" checked>見張り中は画面を消さない（このアプリの窓が見えている間だけ効きます）</label>
+      <label class="c"><input type="checkbox" id="optGap" checked>スリープなどで見張れなかった時間があったら知らせる</label>
+    </div>
+    <p class="status" style="margin-top:8px">画面スリープ防止：<b id="wakeState">オフ</b></p>
+    <div class="row" style="margin-top:8px">
+      <button id="btnPip">ペットを小窓で常に手前に出す</button>
+    </div>
+    <p class="hint">ブラウザの仕様で、このアプリの窓が<b>最小化されたり、他の窓に完全に隠れたり</b>すると画面スリープ防止が外れます。小窓（常に手前）を出しておくのがおすすめです。</p>
+    <details style="margin-top:8px;font-size:13px;line-height:1.7">
+      <summary style="cursor:pointer;font-weight:700">確実に止めないためのパソコン側の設定</summary>
+      <p style="margin:6px 0"><b>大事：</b>PCが<b>スリープ</b>したり<b>画面ロック</b>がかかると、ブラウザ側では見張りを続けられません（画面の取り込みが止まります）。ノートPCはフタを閉じてもスリープします。</p>
+      <p style="margin:6px 0"><b>Mac：</b>ターミナルで <code>caffeinate -dis</code> を実行しておくと、その間は画面もPCも眠りません（Ctrl+Cで解除）。または「システム設定」の「ロック画面」で画面オフまでの時間を「しない」に、「バッテリー」のオプションで電源接続時に自動スリープしない設定に。</p>
+      <p style="margin:6px 0"><b>Windows：</b>「設定 → システム → 電源」で画面オフとスリープを「なし」に。Microsoft PowerToys の「Awake」を使うと、ワンクリックで眠らないモードにできます。</p>
+      <p style="margin:6px 0">どちらも、スクリーンセーバーと自動ロックもオフにしてください。</p>
+    </details>
+  </section>
+
+  <!-- 5. スマホ通知 -->
+  <section class="card">
+    <h2><span class="num">5</span>スマホにも通知する</h2>
+    <label class="c"><input type="checkbox" id="phoneOn">スマホに通知を送る（ntfy を使います）</label>
+    <div class="grid2" style="margin-top:10px">
+      <label class="f">トピック名（合言葉のようなもの）
+        <input type="text" id="ntfyTopic" autocomplete="off" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+      </label>
+      <label class="f">サーバー
+        <input type="url" id="ntfyServer" value="https://ntfy.sh" spellcheck="false" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+      </label>
+    </div>
+    <div style="display:grid;gap:8px;margin-top:10px">
+      <label class="c"><input type="checkbox" id="phoneImg">異常を見つけた範囲の画像も送る</label>
+      <label class="f" style="max-width:320px">定期報告（届かなくなったらPCが止まった合図）
+        <select id="heartbeat"><option value="0" selected>しない</option><option value="1800">30分ごと</option><option value="3600">1時間ごと</option><option value="10800">3時間ごと</option></select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="btnTopic">トピック名を作り直す</button>
+      <button id="btnPhoneTest">スマホにテスト送信</button>
+    </div>
+    <p class="status" style="margin-top:8px">スマホ通知：<b id="phoneState">オフ</b></p>
+    <p class="hint">
+      ① スマホに「ntfy」アプリを入れる（iPhone / Android とも無料）<br>
+      ② アプリの「＋」で上のトピック名を購読する（サーバーは ntfy.sh のまま）<br>
+      ③ ここで「スマホにテスト送信」を押して、届けば準備OK<br>
+      トピック名を知っている人は誰でも通知を読めるので、推測されにくい名前のままにしてください。
+    </p>
+  </section>
+
+  <!-- ログ -->
+  <section class="card">
+    <h2>見張りの記録</h2>
+    <ul id="log"></ul>
+  </section>
+
+  <p class="hint" style="text-align:center">画像の解析はこの端末の中だけで行います。スマホ通知をオンにしたときだけ、通知の文章（と、選んだ場合は範囲の画像）が ntfy のサーバー経由でスマホに送られます。</p>
+</main>
+
+<video id="video" playsinline muted autoplay></video>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const video = $('video'), shot = $('shot'), sctx = shot.getContext('2d', { willReadFrequently: true });
+const SIG = 48;                     // 比較用に縮小するサイズ
+const PIX_DIFF = 32;                // 1ピクセルを「変化した」とみなす色差
+const frameCv = document.createElement('canvas');
+const frameCtx = frameCv.getContext('2d', { willReadFrequently: true });
+const sigCv = document.createElement('canvas'); sigCv.width = sigCv.height = SIG;
+const sigCtx = sigCv.getContext('2d', { willReadFrequently: true });
+
+let pipWin = null;
+let stream = null, regions = [], running = false, ticker = null, checking = false, regionSeq = 1;
+let lastFrame = null;  // 直近のフレーム（ImageBitmap か canvas）
+
+/* ---------- 保存（失敗しても動く） ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('mimamori:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('mimamori:' + k, JSON.stringify(v)); } catch {} }
+};
+
+/* ---------- ペット ---------- */
+const pet = Object.assign({ name: 'ミマモ', xp: 0, checks: 0, hits: 0, love: 0 }, store.get('pet', {}));
+const STAGES = [
+  { min: 1, name: 'たまご' }, { min: 3, name: 'ベビー' }, { min: 6, name: 'こども' }, { min: 11, name: 'ガーディアン' }
+];
+const lvOf = (xp) => Math.floor(Math.sqrt(xp / 5)) + 1;
+const xpFor = (lv) => 5 * (lv - 1) * (lv - 1);
+function stageOf(lv) { let s = 0; STAGES.forEach((st, i) => { if (lv >= st.min) s = i; }); return s; }
+let mood = 'sleep';
+function renderPet() {
+  const lv = lvOf(pet.xp), st = stageOf(lv);
+  document.body.className = `mood-${mood} stage-${st}${lv >= 2 ? ' lv2' : ''}`;
+  $('petName').value = pet.name;
+  $('petLv').textContent = lv; $('petStage').textContent = STAGES[st].name;
+  const a = xpFor(lv), b = xpFor(lv + 1);
+  $('xpBar').style.width = Math.min(100, (pet.xp - a) / (b - a) * 100) + '%';
+  $('stChecks').textContent = pet.checks; $('stHits').textContent = pet.hits; $('stLove').textContent = pet.love;
+  updatePip();
+}
+function say(t) { $('bubble').textContent = t; if (true) updatePip(); }
+function gainXp(n) {
+  const before = stageOf(lvOf(pet.xp)), beforeLv = lvOf(pet.xp);
+  pet.xp += n; store.set('pet', pet);
+  const lv = lvOf(pet.xp), st = stageOf(lv);
+  if (st > before) { say(`わっ！ ${STAGES[st].name}に進化したよ！`); log(`${pet.name}が${STAGES[st].name}に進化した`, 'alert'); }
+  else if (lv > beforeLv) say(`レベル${lv}になった！ もっとしっかり見張れるよ。`);
+  renderPet();
+}
+function setMood(m) { mood = m; renderPet(); }
+$('petName').addEventListener('change', (e) => { pet.name = e.target.value.trim() || 'ミマモ'; store.set('pet', pet); renderPet(); });
+$('pet').addEventListener('click', (e) => {
+  pet.love++; store.set('pet', pet); renderPet();
+  const h = document.createElement('span'); h.className = 'heart'; h.textContent = '♥'; h.style.color = '#ff6b8a';
+  h.style.left = (40 + Math.random() * 60) + 'px'; h.style.top = '20px';
+  $('petBox').appendChild(h); setTimeout(() => h.remove(), 1000);
+  if (mood === 'sleep') say(['なでなで、うれしい！', 'お仕事まだかな？', 'すやぁ…'][pet.love % 3]);
+});
+
+/* ---------- ログ ---------- */
+function log(msg, cls) {
+  const li = document.createElement('li'); if (cls) li.className = cls;
+  const t = document.createElement('time'); t.textContent = new Date().toLocaleTimeString('ja-JP');
+  const s = document.createElement('span'); s.textContent = msg;
+  li.append(t, s); $('log').prepend(li);
+  while ($('log').children.length > 200) $('log').lastChild.remove();
+}
+function status(text, on) { $('statusText').innerHTML = text; $('dot').classList.toggle('on', !!on); if (true) updatePip(); }
+
+/* ---------- 対応チェック ---------- */
+(function checkSupport() {
+  const msgs = [];
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    msgs.push('このブラウザは「アプリの画面を共有」に対応していません（iPhone/iPad のSafariや、Android のブラウザは非対応です）。パソコンの Chrome / Edge で開いてください。スマホでは「カメラを使う」で、カメラに映るものを見張ることはできます。');
+    $('btnPick').disabled = true;
+  }
+  if (!('Notification' in window)) msgs.push('このブラウザは通知に対応していません。iPhoneの場合は「ホーム画面に追加」してから開くと通知が使えます。');
+  if (msgs.length) { $('supportWarn').hidden = false; $('supportWarn').innerHTML = msgs.join('<br>'); }
+})();
+
+/* ---------- Service Worker / 通知 ---------- */
+let swReg = null;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {});
+}
+function updateNotifBtn() {
+  const p = ('Notification' in window) ? Notification.permission : 'unsupported';
+  $('btnNotif').textContent = p === 'granted' ? '通知：許可ずみ' : p === 'denied' ? '通知：ブロック中' : '通知を許可する';
+  $('btnNotif').disabled = p !== 'default';
+}
+$('btnNotif').onclick = async () => { try { await Notification.requestPermission(); } catch {} updateNotifBtn(); };
+updateNotifBtn();
+
+let audioCtx = null;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audioCtx.currentTime;
+    [0, .18, .36].forEach((d, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.frequency.value = [880, 1175, 1568][i]; o.type = 'sine';
+      g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(.25, t + d + .02);
+      g.gain.exponentialRampToValueAtTime(.0001, t + d + .16);
+      o.connect(g).connect(audioCtx.destination); o.start(t + d); o.stop(t + d + .18);
+    });
+  } catch {}
+}
+let titleTimer = null;
+function flashTitle(text) {
+  clearInterval(titleTimer); let on = false; const orig = 'みまもりペット';
+  titleTimer = setInterval(() => { document.title = (on = !on) ? '⚠ ' + text : orig; }, 900);
+  const stop = () => { clearInterval(titleTimer); document.title = orig; };
+  window.addEventListener('focus', stop, { once: true });
+  setTimeout(stop, 60000);
+}
+async function notify(title, body, opts = {}) {
+  if ($('sound').checked) { beep(); try { navigator.vibrate?.([200, 100, 200]); } catch {} }
+  flashTitle(title);
+  sendPhone(title, body, opts);   // スマホへ（オンのときだけ）
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opt = { body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'mimamori-' + title, renotify: true, requireInteraction: false };
+  if (opts.image) opt.image = opts.image;
+  try {
+    const reg = swReg || await navigator.serviceWorker?.getRegistration();
+    if (reg) { await reg.showNotification(title, opt); return; }
+  } catch {}
+  try { new Notification(title, opt); } catch {}
+}
+
+/* ---------- スマホ通知（ntfy） ---------- */
+function randomTopic() {
+  const a = new Uint8Array(9); crypto.getRandomValues(a);
+  return 'mimamori-' + Array.from(a, (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
+}
+function ntfyBase() { return ($('ntfyServer').value.trim() || 'https://ntfy.sh').replace(/\/+$/, ''); }
+function phoneState(t, ok) { $('phoneState').textContent = t; $('phoneState').style.color = ok === false ? 'var(--warn)' : ''; }
+async function sendPhone(title, body, opts = {}, force) {
+  if (!force && !$('phoneOn').checked) return;
+  const topic = $('ntfyTopic').value.trim();
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(topic)) { phoneState('トピック名は英数字と - _ だけにしてください', false); return; }
+  const priority = opts.priority || 4, tags = opts.tags || 'warning';
+  try {
+    let res;
+    if (opts.canvas && $('phoneImg').checked) {
+      // 画像つき：本体に画像、文章はクエリで渡す
+      const blob = await new Promise((r) => opts.canvas.toBlob(r, 'image/png'));
+      const q = new URLSearchParams({ title, message: body, priority: String(priority), tags, filename: 'mimamori.png' });
+      res = await fetch(`${ntfyBase()}/${encodeURIComponent(topic)}?${q}`, { method: 'PUT', body: blob });
+    } else {
+      res = await fetch(ntfyBase() + '/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, title, message: body, priority, tags: tags.split(',') })
+      });
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 429 ? '（送りすぎ。少し待ってね）' : ''));
+    phoneState('送信OK（' + new Date().toLocaleTimeString('ja-JP') + '）', true);
+  } catch (e) {
+    phoneState('送信できませんでした：' + (e.message || e), false);
+    log('スマホへの通知に失敗：' + (e.message || e), 'alert');
+  }
+}
+$('btnTopic').onclick = () => { $('ntfyTopic').value = randomTopic(); store.set('opt:ntfyTopic', $('ntfyTopic').value); };
+$('btnPhoneTest').onclick = () => sendPhone(`${pet.name}からのお知らせ`, 'スマホ通知のテストです。届いたら準備OK！', { tags: 'dog', priority: 3 }, true);
+$('phoneOn').addEventListener('change', () => phoneState($('phoneOn').checked ? 'オン' : 'オフ'));
+
+$('btnTest').onclick = () => notify(`${pet.name}からのお知らせ`, 'テスト通知です。ちゃんと届いたかな？');
+
+/* ---------- キャプチャ ---------- */
+async function startStream(getter) {
+  stopStream(true);
+  try { stream = await getter(); }
+  catch (e) { log('共有がキャンセルされました'); return; }
+  video.srcObject = stream;
+  try { await video.play(); } catch {}
+  await new Promise((r) => { if (video.videoWidth) r(); else video.onloadedmetadata = () => r(); setTimeout(r, 3000); });
+  const vt = stream.getVideoTracks()[0];
+  let muteTimer = null;
+  vt.addEventListener('mute', () => {
+    // 一瞬の途切れは無視して、20秒続いたら知らせる
+    clearTimeout(muteTimer);
+    muteTimer = setTimeout(() => {
+      if (!running || !vt.muted) return;
+      log('画面の取り込みが止まっています（最小化・画面ロックなど）', 'alert');
+      notify('見張りが止まっているかも', '画面の取り込みが止まっています。見張りたい窓が最小化されたり、画面がロックされていないか確認してね。', { priority: 4, tags: 'warning' });
+    }, 20000);
+  });
+  vt.addEventListener('unmute', () => { if (muteTimer) { clearTimeout(muteTimer); muteTimer = null; } if (running) log('画面の取り込みが再開しました'); });
+  vt.addEventListener('ended', () => {
+    log('画面共有が終了しました', 'alert');
+    if (running) { notify('見張りが止まりました', '画面共有が終わったので見張りを続けられません。', { priority: 5, tags: 'stop_sign' }); stopMonitor(); }
+    stopStream(true);
+  });
+  $('btnStopShare').disabled = false; $('btnRetake').disabled = false;
+  const label = stream.getVideoTracks()[0].label || '選んだ画面';
+  log(`「${label}」を共有しました`);
+  await takeSnapshot();
+  say('ここを見張ればいいんだね？ 画面を長押しして範囲を教えて！');
+}
+function stopStream(silent) {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null; video.srcObject = null;
+  $('btnStopShare').disabled = true;
+  if (!silent) log('共有をやめました');
+}
+$('btnPick').onclick = () => startStream(() => navigator.mediaDevices.getDisplayMedia({
+  video: { frameRate: 5, displaySurface: 'window' }, audio: false, selfBrowserSurface: 'exclude', surfaceSwitching: 'include'
+}));
+$('btnCam').onclick = () => {
+  if (!navigator.mediaDevices?.getUserMedia) { alert('このブラウザはカメラに対応していません'); return; }
+  startStream(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false }));
+};
+$('btnStopShare').onclick = () => { if (running) stopMonitor(); stopStream(); };
+
+// 今のフレームを frameCv に描く
+async function grabFrame() {
+  if (!stream || !video.videoWidth) return false;
+  const w = video.videoWidth, h = video.videoHeight;
+  if (frameCv.width !== w || frameCv.height !== h) { frameCv.width = w; frameCv.height = h; }
+  const track = stream.getVideoTracks()[0];
+  // バックグラウンドでも新しいフレームを取りやすい ImageCapture を優先
+  if ('ImageCapture' in window && track?.readyState === 'live') {
+    try {
+      const bmp = await new ImageCapture(track).grabFrame();
+      if (frameCv.width !== bmp.width || frameCv.height !== bmp.height) { frameCv.width = bmp.width; frameCv.height = bmp.height; }
+      frameCtx.drawImage(bmp, 0, 0); bmp.close?.(); return true;
+    } catch {}
+  }
+  frameCtx.drawImage(video, 0, 0, w, h); return true;
+}
+async function takeSnapshot() {
+  if (!(await grabFrame())) return;
+  shot.width = frameCv.width; shot.height = frameCv.height;
+  lastFrame = true;
+  $('emptyMsg').hidden = true;
+  redraw();
+  // 既存の範囲は基準をとり直す
+  regions.forEach((r) => resetRegion(r));
+  updateButtons();
+}
+$('btnRetake').onclick = async () => { await takeSnapshot(); log('スクショを撮り直しました（基準も更新）'); };
+
+/* ---------- 描画 ---------- */
+let draft = null;
+function redraw() {
+  if (!lastFrame) return;
+  sctx.drawImage(frameCv, 0, 0);
+  const lw = Math.max(3, shot.width / 200), fs = Math.max(14, shot.width / 45);
+  sctx.font = `bold ${fs}px sans-serif`;
+  regions.forEach((r) => {
+    const c = r.hit ? '#e5484d' : '#3fae7a';
+    sctx.lineWidth = lw * (r.hit ? 2 : 1); sctx.strokeStyle = c; sctx.strokeRect(r.x, r.y, r.w, r.h);
+    sctx.fillStyle = c; const tw = sctx.measureText(r.name).width + 12;
+    sctx.fillRect(r.x, Math.max(0, r.y - fs - 8), tw, fs + 8);
+    sctx.fillStyle = '#fff'; sctx.fillText(r.name, r.x + 6, Math.max(fs, r.y - 6));
+  });
+  if (draft) {
+    sctx.fillStyle = 'rgba(47,128,237,.18)'; sctx.fillRect(draft.x, draft.y, draft.w, draft.h);
+    sctx.setLineDash([lw * 4, lw * 3]); sctx.lineWidth = lw * 1.5; sctx.strokeStyle = '#2f80ed';
+    sctx.strokeRect(draft.x, draft.y, draft.w, draft.h); sctx.setLineDash([]);
+  }
+}
+
+/* ---------- 長押しで範囲選択 ---------- */
+const LONG_MS = 400, MOVE_TOL = 10;
+let press = null, selecting = false;
+function toCanvas(e) {
+  const b = shot.getBoundingClientRect();
+  return { x: (e.clientX - b.left) * shot.width / b.width, y: (e.clientY - b.top) * shot.height / b.height, cx: e.clientX - b.left, cy: e.clientY - b.top };
+}
+function normRect(a, b) {
+  const x = Math.max(0, Math.min(a.x, b.x)), y = Math.max(0, Math.min(a.y, b.y));
+  return { x: Math.round(x), y: Math.round(y),
+    w: Math.round(Math.min(shot.width, Math.max(a.x, b.x)) - x), h: Math.round(Math.min(shot.height, Math.max(a.y, b.y)) - y) };
+}
+shot.addEventListener('pointerdown', (e) => {
+  if (!lastFrame || (e.pointerType === 'mouse' && e.button !== 0)) return;
+  const p = toCanvas(e);
+  press = { id: e.pointerId, start: p, sx: e.clientX, sy: e.clientY };
+  const ring = $('ring'); ring.style.left = p.cx + 'px'; ring.style.top = p.cy + 'px';
+  ring.classList.remove('on'); void ring.offsetWidth; ring.classList.add('on');
+  press.timer = setTimeout(() => {
+    selecting = true; $('stageBox').classList.add('selecting');
+    try { shot.setPointerCapture(press.id); } catch {}
+    try { navigator.vibrate?.(30); } catch {}
+    draft = { x: p.x, y: p.y, w: 0, h: 0 }; redraw();
+  }, LONG_MS);
+});
+shot.addEventListener('pointermove', (e) => {
+  if (!press || e.pointerId !== press.id) return;
+  if (!selecting) {
+    if (Math.hypot(e.clientX - press.sx, e.clientY - press.sy) > MOVE_TOL) cancelPress();
+    return;
+  }
+  draft = normRect(press.start, toCanvas(e)); redraw();
+});
+function cancelPress() {
+  if (press) clearTimeout(press.timer);
+  $('ring').classList.remove('on');
+  press = null; selecting = false; draft = null; $('stageBox').classList.remove('selecting'); redraw();
+}
+function endPress(e) {
+  if (!press || (e && e.pointerId !== press.id)) return;
+  const wasSel = selecting, rect = draft;
+  cancelPress();
+  if (wasSel && rect && rect.w > shot.width / 100 + 4 && rect.h > shot.height / 100 + 4) addRegion(rect);
+  else if (wasSel) say('ちょっと小さすぎるよ。もう少し大きく囲んでね。');
+}
+shot.addEventListener('pointerup', endPress);
+shot.addEventListener('pointercancel', () => { if (!selecting) cancelPress(); });
+shot.addEventListener('contextmenu', (e) => e.preventDefault());
+// 選択中はスクロールさせない（iOS対策）
+shot.addEventListener('touchmove', (e) => { if (selecting) e.preventDefault(); }, { passive: false });
+
+/* ---------- 範囲と異常検知 ---------- */
+function signature(r) {
+  sigCtx.drawImage(frameCv, r.x, r.y, r.w, r.h, 0, 0, SIG, SIG);
+  return sigCtx.getImageData(0, 0, SIG, SIG).data.slice();
+}
+// 変化したピクセルの割合(%)
+function changeScore(a, b) {
+  let changed = 0; const n = SIG * SIG;
+  for (let i = 0; i < a.length; i += 4) {
+    const d = Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+    if (d > PIX_DIFF * 1.5) changed++;
+  }
+  return changed / n * 100;
+}
+function resetRegion(r) {
+  r.base = signature(r); r.prev = r.base; r.mean = 0; r.var = 0; r.n = 0; r.hit = false; r.score = 0; r.lastAlert = 0;
+  drawThumb(r);
+}
+function addRegion(rect) {
+  const r = Object.assign({ id: regionSeq, name: '範囲' + regionSeq }, rect); regionSeq++;
+  regions.push(r); resetRegion(r); renderRegions(); redraw(); updateButtons();
+  log(`${r.name}を追加しました`);
+  say(`${r.name}はまかせて！ ほかにもあれば、また長押しで囲んでね。`);
+}
+function drawThumb(r) {
+  if (!r.thumb) { r.thumb = document.createElement('canvas'); }
+  const tw = 128, th = Math.max(16, Math.round(128 * r.h / r.w));
+  r.thumb.width = tw; r.thumb.height = Math.min(th, 128);
+  r.thumb.getContext('2d').drawImage(frameCv, r.x, r.y, r.w, r.h, 0, 0, r.thumb.width, r.thumb.height);
+}
+function threshold(r) {
+  const user = +$('sens').value;
+  if (!$('learn').checked || r.n < 5) return user;
+  return Math.max(user, r.mean + 4 * Math.sqrt(r.var) + 1);
+}
+function renderRegions() {
+  const ul = $('regionList'); ul.innerHTML = '';
+  regions.forEach((r) => {
+    const li = document.createElement('li'); if (r.hit) li.className = 'hit';
+    const info = document.createElement('div');
+    const th = threshold(r);
+    info.innerHTML = `<div class="name"></div><div class="score">変化 ${r.score.toFixed(1)}% ／ しきい値 ${th.toFixed(1)}%</div>
+      <div class="meter"><i style="width:${Math.min(100, r.score / Math.max(th * 2, 1) * 100)}%;background:${r.hit ? 'var(--warn)' : 'var(--ok)'}"></i><b style="left:50%"></b></div>`;
+    info.querySelector('.name').textContent = r.name;
+    const del = document.createElement('button'); del.textContent = '削除';
+    del.onclick = () => { regions = regions.filter((x) => x !== r); renderRegions(); redraw(); updateButtons(); };
+    li.append(r.thumb, info, del); ul.appendChild(li);
+  });
+}
+$('btnClear').onclick = () => { regions = []; renderRegions(); redraw(); updateButtons(); };
+$('sens').oninput = (e) => { $('sensVal').textContent = e.target.value; renderRegions(); };
+
+async function check() {
+  if (checking || !running) return; checking = true;
+  try {
+    const now = Date.now();
+    const gapLimit = +$('interval').value * 3000 + 30000;
+    if ($('optGap').checked && lastTick && now - lastTick > gapLimit) {
+      const min = Math.round((now - lastTick) / 60000);
+      const msg = `約${min < 1 ? '1分未満' : min + '分'}のあいだ見張れていませんでした（PCのスリープや画面ロックかも）`;
+      log(msg, 'alert'); say('あれ？ ちょっと寝ちゃってたかも…ごめんね。');
+      notify('見張りに空白がありました', msg, { priority: 4, tags: 'zzz' });
+      regions.forEach((r) => { r.prev = r.base; });
+    }
+    lastTick = now;
+    const hb = +$('heartbeat').value * 1000;
+    if (hb && $('phoneOn').checked && now - lastBeat >= hb) {
+      lastBeat = now;
+      sendPhone(`${pet.name}は見張り中`, `${regions.length}か所を見張っています。これまでに見つけた異常：${pet.hits}件`, { priority: 2, tags: 'eyes' });
+    }
+    if (!(await grabFrame())) return;
+    pet.checks++;
+    const cool = +$('cooldown').value * 1000, mode = $('mode').value;
+    const hits = [];
+    for (const r of regions) {
+      const sig = signature(r);
+      const ref = mode === 'baseline' ? r.base : r.prev;
+      const s = changeScore(ref, sig);
+      const th = threshold(r);
+      r.score = s;
+      const isHit = s >= th;
+      if (!isHit) {
+        // ふだんの揺らぎを学習（指数移動平均）
+        const a = r.n < 20 ? 1 / (r.n + 1) : 0.05;
+        const d = s - r.mean; r.mean += a * d; r.var = (1 - a) * (r.var + a * d * d); r.n++;
+      }
+      if (isHit && now - r.lastAlert >= cool) { hits.push(r); r.lastAlert = now; }
+      r.hit = isHit;
+      r.prev = sig;
+      if (isHit && mode === 'baseline' && $('rebase').checked && hits.includes(r)) { r.base = sig; r.n = 0; r.mean = 0; r.var = 0; }
+    }
+    // 画面とリストを更新
+    shot.width = frameCv.width; shot.height = frameCv.height; redraw(); renderRegions();
+    if (hits.length) {
+      pet.hits += hits.length; setMood('alert'); setTimeout(() => running && setMood('watch'), 4000);
+      const names = hits.map((r) => r.name).join('、');
+      say(`たいへん！ ${names}が変わったよ！`);
+      log(`異常を検知：${names}（${hits.map((r) => r.score.toFixed(1) + '%').join(', ')}）`, 'alert');
+      let img; try { drawThumb(hits[0]); img = hits[0].thumb.toDataURL('image/png'); } catch {}
+      notify(`${pet.name}が異常を見つけたよ`, `${names} に変化がありました`, { image: img, canvas: hits[0].thumb, priority: 4, tags: 'warning' });
+      gainXp(1 + 10 * hits.length);
+    } else {
+      gainXp(1);
+      if (pet.checks % 20 === 0) say(['異常なし！ ちゃんと見てるよ。', 'じーっ…', 'いまのところ平和だね。'][Math.floor(Math.random() * 3)]);
+    }
+    status(`見張り中 <b>${regions.length}か所</b> ・ 最終チェック ${new Date().toLocaleTimeString('ja-JP')}`, true);
+  } finally { checking = false; }
+}
+
+/* ---------- タイマー（Workerでバックグラウンドの間引きを避ける） ---------- */
+function makeTicker(ms, fn) {
+  try {
+    const src = `let t;onmessage=e=>{clearInterval(t);if(e.data>0)t=setInterval(()=>postMessage(0),e.data)}`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    w.onmessage = fn; w.postMessage(ms);
+    return { stop() { w.postMessage(0); w.terminate(); } };
+  } catch {
+    const t = setInterval(fn, ms); return { stop() { clearInterval(t); } };
+  }
+}
+let wakeLock = null, pipWakeLock = null, lastTick = 0, lastBeat = 0;
+function wakeStateText() {
+  const on = (wakeLock && !wakeLock.released) || (pipWakeLock && !pipWakeLock.released);
+  if (!running || !$('optWake').checked) return 'オフ';
+  if (!('wakeLock' in navigator)) return 'このブラウザは非対応';
+  return on ? '有効（画面は消えません）' : 'いまは無効（窓が隠れている・最小化など）';
+}
+function showWake() { $('wakeState').textContent = wakeStateText(); updatePip(); }
+async function acquireWake() {
+  if (!running || !$('optWake').checked || !('wakeLock' in navigator)) { showWake(); return; }
+  if (document.visibilityState === 'visible' && !(wakeLock && !wakeLock.released)) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', showWake); } catch {}
+  }
+  // 小窓が開いていれば、小窓側でも取る（小窓は常に見えているので外れにくい）
+  if (pipWin && !(pipWakeLock && !pipWakeLock.released)) {
+    try { pipWakeLock = await pipWin.navigator.wakeLock.request('screen'); pipWakeLock.addEventListener('release', showWake); } catch {}
+  }
+  showWake();
+}
+function releaseWake() {
+  try { wakeLock?.release(); } catch {} try { pipWakeLock?.release(); } catch {}
+  wakeLock = pipWakeLock = null; showWake();
+}
+document.addEventListener('visibilitychange', acquireWake);
+$('optWake').addEventListener('change', () => $('optWake').checked ? acquireWake() : releaseWake());
+// 窓が隠れていても定期的に取り直しを試す
+setInterval(() => { if (running) acquireWake(); }, 15000);
+
+/* 小窓（Document Picture-in-Picture） */
+function updatePip() {
+  if (!pipWin) return;
+  const d = pipWin.document;
+  d.body.className = document.body.className;
+  const set = (id, t) => { const el = d.getElementById(id); if (el) el.textContent = t; };
+  set('pipName', `${pet.name}  Lv.${lvOf(pet.xp)}`);
+  set('pipBubble', $('bubble').textContent);
+  set('pipStatus', $('statusText').textContent);
+  set('pipWake', '画面スリープ防止：' + wakeStateText());
+}
+$('btnPip').onclick = async () => {
+  if (pipWin) { pipWin.close(); return; }
+  if (!('documentPictureInPicture' in window)) { alert('この機能はパソコンの Chrome / Edge（116以降）で使えます'); return; }
+  try {
+    pipWin = await documentPictureInPicture.requestWindow({ width: 280, height: 320 });
+  } catch (e) { log('小窓を開けませんでした'); return; }
+  const d = pipWin.document;
+  document.querySelectorAll('style').forEach((st) => d.head.appendChild(st.cloneNode(true)));
+  const extra = d.createElement('style');
+  extra.textContent = 'body{padding:10px;margin:0;text-align:center} #pet{width:150px;height:150px;margin:0 auto;display:block} .bubble{font-size:13px;text-align:left} .pipname{font-weight:800} .pipsmall{font-size:11px;color:var(--sub);margin-top:6px}';
+  d.head.appendChild(extra);
+  const wrap = d.createElement('div');
+  wrap.appendChild($('pet').cloneNode(true));
+  wrap.insertAdjacentHTML('beforeend', '<div class="pipname" id="pipName"></div><div class="bubble" id="pipBubble"></div><div class="pipsmall" id="pipStatus"></div><div class="pipsmall" id="pipWake"></div>');
+  d.body.appendChild(wrap);
+  $('btnPip').textContent = '小窓を閉じる';
+  pipWin.addEventListener('pagehide', () => {
+    pipWin = null; pipWakeLock = null; $('btnPip').textContent = 'ペットを小窓で常に手前に出す'; acquireWake();
+  });
+  updatePip(); acquireWake();
+};
+
+async function startMonitor() {
+  if (!stream || !regions.length) return;
+  if ('Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch {} updateNotifBtn(); }
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch {}
+  regions.forEach((r) => { r.hit = false; r.lastAlert = 0; });
+  running = true; lastTick = 0; lastBeat = Date.now(); setMood('watch');
+  ticker = makeTicker(+$('interval').value * 1000, check);
+  log(`見張りスタート（${$('interval').selectedOptions[0].text}ごと・${regions.length}か所）`);
+  say('見張り開始！ 何かあったらすぐ知らせるね。');
+  status(`見張り中 <b>${regions.length}か所</b>`, true);
+  updateButtons(); await acquireWake(); check();
+  if ($('phoneOn').checked) sendPhone(`${pet.name}が見張りをはじめたよ`, `${regions.length}か所を${$('interval').selectedOptions[0].text}ごとにチェックします`, { priority: 2, tags: 'eyes' });
+}
+function stopMonitor() {
+  running = false; ticker?.stop(); ticker = null; lastTick = 0;
+  releaseWake();
+  setMood('sleep'); say('おつかれさま。ひと休みするね。');
+  log('見張りストップ'); status('待機中', false); updateButtons();
+}
+$('btnStart').onclick = startMonitor;
+$('btnStop').onclick = stopMonitor;
+['interval'].forEach((id) => $(id).addEventListener('change', () => {
+  if (running) { ticker.stop(); ticker = makeTicker(+$('interval').value * 1000, check); log(`間隔を${$('interval').selectedOptions[0].text}に変更`); }
+}));
+$('mode').addEventListener('change', () => regions.forEach((r) => { r.n = 0; r.mean = 0; r.var = 0; }));
+
+function updateButtons() {
+  $('btnStart').disabled = running || !stream || !regions.length;
+  $('btnStop').disabled = !running;
+  $('btnClear').disabled = running || !regions.length;
+  $('btnRetake').disabled = running || !stream;
+  $('btnPick').disabled = running || !navigator.mediaDevices?.getDisplayMedia;
+  $('btnCam').disabled = running;
+}
+
+// 設定の保存
+['interval', 'mode', 'sens', 'cooldown', 'learn', 'rebase', 'sound', 'optWake', 'optGap', 'phoneOn', 'phoneImg', 'heartbeat', 'ntfyTopic', 'ntfyServer'].forEach((id) => {
+  const el = $(id), v = store.get('opt:' + id, null);
+  if (v != null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
+  el.addEventListener('change', () => store.set('opt:' + id, el.type === 'checkbox' ? el.checked : el.value));
+});
+$('sensVal').textContent = $('sens').value;
+if (!$('ntfyTopic').value) { $('ntfyTopic').value = randomTopic(); store.set('opt:ntfyTopic', $('ntfyTopic').value); }
+phoneState($('phoneOn').checked ? 'オン' : 'オフ');
+
+window.addEventListener('beforeunload', (e) => { if (running) { e.preventDefault(); e.returnValue = ''; } });
+renderPet();
+// テスト用フック
+window.__mimamori = { regions: () => regions, addRegion, check, startMonitor, stopMonitor, pet };
+})();
+</script>
+</body>
+</html>

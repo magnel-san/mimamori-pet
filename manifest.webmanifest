@@ -1,0 +1,14 @@
+{
+  "name": "みまもりペット",
+  "short_name": "みまもりペット",
+  "description": "ペットが画面の一部を見張って、変化があったら通知してくれるアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fff4e6",
+  "theme_color": "#ff9f6b",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

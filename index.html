@@ -275,7 +275,22 @@
           </select>
         </label>
       </div>
-      <label class="c" style="margin-top:10px"><input type="checkbox" id="barkCall">異常のときは30秒間鳴らし続ける</label>
+      <div class="grid2" style="margin-top:10px">
+        <label class="f">「重大な通知」の音量
+          <select id="barkVolume">
+            <option value="1">とても小さい</option>
+            <option value="3" selected>小さめ</option>
+            <option value="5">ふつう</option>
+            <option value="8">大きい</option>
+            <option value="10">最大</option>
+          </select>
+        </label>
+        <label class="f">通知音の名前（空欄ならBarkの標準の音）
+          <input type="text" id="barkSound" autocomplete="off" spellcheck="false" placeholder="例：Barkアプリの音一覧からコピー" style="font:inherit;padding:8px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink)">
+        </label>
+      </div>
+      <label class="c" style="margin-top:10px"><input type="checkbox" id="barkCall">異常のときは30秒間鳴らし続ける（かなりうるさいです）</label>
+      <p class="hint" style="margin-top:4px">「ふつうに鳴らす」「集中モード中でも鳴らす」の音量は、iPhoneの音量ボタン（着信音と通知）に従います。「重大な通知」だけは上の音量で鳴ります。音の名前は、Barkアプリの音の一覧で試聴して選べます。</p>
       <p class="hint">
         ① iPhoneに「<b>Bark</b>」アプリ（App Storeで無料）を入れて開き、通知を許可する。「重大な通知」の許可を求められたら許可する<br>
         ② Barkの画面に出ている <code>https://api.day.app/〜</code> のURLをコピーして、上の欄に貼る<br>
@@ -480,7 +495,9 @@ async function sendBark(title, body, opts) {
   const q = new URLSearchParams({ group: 'みまもりペット', level });
   try { q.set('icon', new URL('icons/icon-192.png', location.href).href); } catch {}
   if ((kind === 'alert' || kind === 'test') && $('barkCall').checked) q.set('call', '1');
-  if (level === 'critical') q.set('volume', '8');
+  if (level === 'critical') q.set('volume', $('barkVolume').value || '3');
+  const snd = $('barkSound').value.trim();
+  if (snd && kind !== 'info' && /^[A-Za-z0-9_-]{1,40}$/.test(snd)) q.set('sound', snd);
   const url = `${b.server}/${b.key}/${encodeURIComponent(title)}/${encodeURIComponent(body)}?${q}`;
   try {
     const res = await fetch(url);
@@ -890,7 +907,7 @@ function updateButtons() {
 }
 
 // 設定の保存
-['interval', 'mode', 'sens', 'cooldown', 'learn', 'rebase', 'sound', 'optWake', 'optGap', 'phoneOn', 'phoneImg', 'heartbeat', 'ntfyTopic', 'ntfyServer', 'phoneSvc', 'barkKey', 'barkAlertLevel', 'barkStopLevel', 'barkCall'].forEach((id) => {
+['interval', 'mode', 'sens', 'cooldown', 'learn', 'rebase', 'sound', 'optWake', 'optGap', 'phoneOn', 'phoneImg', 'heartbeat', 'ntfyTopic', 'ntfyServer', 'phoneSvc', 'barkKey', 'barkAlertLevel', 'barkStopLevel', 'barkCall', 'barkVolume', 'barkSound'].forEach((id) => {
   const el = $(id), v = store.get('opt:' + id, null);
   if (v != null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
   el.addEventListener('change', () => store.set('opt:' + id, el.type === 'checkbox' ? el.checked : el.value));
